@@ -24,41 +24,54 @@ export async function GET(request: Request) {
   try {
     const YahooFinance = require('yahoo-finance2').default;
     const yf = new YahooFinance({ suppressNotices: ['yahooSurvey'] });
-    const data = await yf.quote(symbol);
     
-    const currentPrice = data.regularMarketPrice || 0;
-    const previousClose = data.regularMarketPreviousClose || data.previousClose || currentPrice;
+    // Fetch both quote and quoteSummary in parallel for speed
+    const [quoteData, summaryData] = await Promise.all([
+      yf.quote(symbol),
+      yf.quoteSummary(symbol, { 
+        modules: ['defaultKeyStatistics', 'financialData', 'assetProfile'] 
+      }).catch(() => null)
+    ]);
+    
+    const currentPrice = quoteData.regularMarketPrice || 0;
+    const previousClose = quoteData.regularMarketPreviousClose || quoteData.previousClose || currentPrice;
     const change = currentPrice - previousClose;
     const changePercent = previousClose ? (change / previousClose * 100) : 0;
     
+    // Extract extra data from quoteSummary
+    const keyStats = summaryData?.defaultKeyStatistics || {};
+    const finData = summaryData?.financialData || {};
+    const assetProfile = summaryData?.assetProfile || {};
+    
     const result = {
-      symbol: data.symbol || symbol,
-      name: data.shortName || data.longName || data.quoteType || symbol,
+      symbol: quoteData.symbol || symbol,
+      name: quoteData.shortName || quoteData.longName || quoteData.quoteType || symbol,
       price: currentPrice,
       change: change,
       changePercent: changePercent,
-      volume: data.regularMarketVolume || 0,
-      marketCap: data.marketCap || 0,
-      sharesOutstanding: data.sharesOutstanding || 0,
-      high52Week: data.fiftyTwoWeekHigh || 0,
-      low52Week: data.fiftyTwoWeekLow || 0,
+      volume: quoteData.regularMarketVolume || 0,
+      marketCap: quoteData.marketCap || 0,
+      sharesOutstanding: quoteData.sharesOutstanding || 0,
+      high52Week: quoteData.fiftyTwoWeekHigh || 0,
+      low52Week: quoteData.fiftyTwoWeekLow || 0,
       // Fundamental data
-      trailingPE: data.trailingPE || null,
-      forwardPE: data.forwardPE || null,
-      epsTrailingTwelveMonths: data.epsTrailingTwelveMonths || null,
-      epsForward: data.epsForward || null,
-      bookValue: data.bookValue || null,
-      priceToBook: data.priceToBook || null,
-      trailingEps: data.trailingEps || null,
-      forwardEps: data.forwardEps || null,
-      earningsGrowth: data.earningsGrowth || null,
-      revenueGrowth: data.revenueGrowth || null,
-      dividendYield: data.dividendYield || null,
-      profitMargins: data.profitMargins || null,
-      sector: data.sector || null,
-      industry: data.industry || null,
-      website: data.website || null,
-      longBusinessSummary: data.longBusinessSummary || null,
+      trailingPE: quoteData.trailingPE || null,
+      forwardPE: quoteData.forwardPE || null,
+      epsTrailingTwelveMonths: quoteData.epsTrailingTwelveMonths || null,
+      epsForward: quoteData.epsForward || null,
+      bookValue: quoteData.bookValue || null,
+      priceToBook: quoteData.priceToBook || null,
+      trailingEps: keyStats.trailingEps || null,
+      forwardEps: keyStats.forwardEps || null,
+      // Growth from financialData
+      earningsGrowth: finData.earningsGrowth || null,
+      revenueGrowth: finData.revenueGrowth || null,
+      dividendYield: quoteData.dividendYield || keyStats.dividendYield || finData.dividendYield || null,
+      profitMargins: finData.profitMargins || null,
+      sector: assetProfile.sector || null,
+      industry: assetProfile.industry || null,
+      website: assetProfile.website || null,
+      longBusinessSummary: assetProfile.longBusinessSummary || null,
     };
     
     return NextResponse.json(result);
