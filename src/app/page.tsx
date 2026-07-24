@@ -6,7 +6,6 @@ import StockChart from '@/components/StockChart';
 import StockInfoPanel from '@/components/StockInfo';
 import BacktestPanel from '@/components/BacktestPanel';
 import PredictionPanel from '@/components/PredictionPanel';
-import ScreenerPanel from '@/components/ScreenerPanel';
 import { getStockQuote, getStockHistory } from '@/lib/stock-api';
 import { StockQuote, StockInfo } from '@/types/stock';
 
@@ -72,11 +71,6 @@ export default function TradingPlatform() {
               currentPrice={stockInfo?.price || 0}
             />
           </div>
-        </div>
-
-        {/* Screener Section */}
-        <div className="mt-6">
-          <ScreenerPanel />
         </div>
 
         {/* Disclaimer */}
